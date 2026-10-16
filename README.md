@@ -1,6 +1,6 @@
 # Samsung IP Brightness
 
-Control the **actual panel brightness** of a compatible Samsung smart monitor from Windows over your local network. Includes a slider, global keyboard shortcuts and optional startup at sign-in. No cloud account, DDC/CI, service menu, or third-party Python packages required.
+Control the **actual panel brightness** of a compatible Samsung smart monitor from Windows over your local network. Includes a slider, system tray icon, daily schedule, global keyboard shortcuts and optional startup at sign-in. No cloud account, DDC/CI, service menu, or third-party Python packages required.
 
 **[Deutsche Anleitung](README.de.md)**
 
@@ -48,6 +48,26 @@ Keep the extracted folder in place: the shortcuts point to it. Running the insta
 | Hide window, keep hotkeys | Close the window |
 | Stop background app | **Quit app** |
 
+### System tray
+
+The sun icon appears in the Windows notification area (possibly under **^**). Click it to open the window. Right-click for **Open**, **Darker**, **Brighter**, **Daily schedule** on/off and **Quit app**. The tooltip shows the latest known brightness. Closing the window keeps the tray icon, schedule and hotkeys running. The icon is restored if Windows Explorer restarts.
+
+### Daily brightness schedule
+
+In the window, enter one local time and brightness per line, for example:
+
+```text
+08:00=30
+20:00=15
+23:00=5
+```
+
+Select **Enable daily schedule**, then **Save schedule**. The example is initially **disabled**; it only becomes active when you save it enabled. Times must be unique and use 24-hour `HH:MM`, values must be 0–50. The schedule repeats every day using your **Windows local time**, including local daylight-saving changes.
+
+The latest due entry applies immediately after saving/enabling, on app startup, and after waking from sleep. Before the first time of the day, the previous day's last entry applies. Manual brightness changes remain until the next scheduled entry. If the monitor is unreachable, the app quietly retries after 60 seconds; it does not wake the monitor. The PC and app must be running. No Windows scheduled tasks are created. This version changes brightness directly at the selected time; it does not fade gradually.
+
+Use the tray menu to pause/resume the saved schedule. Settings are stored with the local pairing configuration, outside the repository.
+
 Each keypress changes the panel brightness by **3 units**. The app must be running for hotkeys to work. Only one instance runs: launching it again brings the existing window forward. Pairing/control requests are serialized in a background worker so the window remains responsive.
 
 Optional command-line arguments:
@@ -89,7 +109,7 @@ py -3 -m unittest discover -s tests -v
 py -3 -m py_compile samsung_brightness.py
 ```
 
-The tests use mocked network responses; they do not contact a real monitor. A Windows smoke test covers startup, DPAPI, single-instance behavior and global hotkeys; actual panel control was verified with the G95SC prototype. Other monitors need hardware testing.
+The tests use mocked network responses; they do not contact a real monitor. Schedule tests cover midnight rollover, exact boundaries, manual overrides, retries and the next day. Windows smoke tests cover startup, DPAPI, single-instance behavior, global hotkeys, tray lifecycle and applying a schedule through the GUI. Actual panel control was verified on a G95SC. Other monitors need hardware testing.
 
 ## Protocol references
 

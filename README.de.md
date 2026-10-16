@@ -1,6 +1,6 @@
 # Samsung IP Brightness – deutsche Anleitung
 
-Eine kleine Windows-App, die die **echte Panelhelligkeit** kompatibler Samsung-Monitore direkt über das lokale Netzwerk steuert. Mit Schieberegler, globalen Tastenkürzeln und optionalem Autostart. Kein Cloud-Konto und kein Servicemenü nötig.
+Eine kleine Windows-App, die die **echte Panelhelligkeit** kompatibler Samsung-Monitore direkt über das lokale Netzwerk steuert. Mit Schieberegler, Tray-Symbol, täglichem Zeitplan, globalen Tastenkürzeln und optionalem Autostart. Kein Cloud-Konto und kein Servicemenü nötig.
 
 **Getestetes Modell:** Odyssey OLED G9 **G95SC**, IP Remote aktiviert. Andere Tizen-Monitore können funktionieren, sind aber nicht bestätigt. Die App verwendet `backlightControl` auf HTTPS-Port **1516** und die Helligkeitsskala **0–50**. Der Samsung-Befehl `brightnessControl` wird nicht verwendet, weil er bei manchen Geräten die Schattendetails steuert.
 
@@ -39,6 +39,26 @@ Den Ordner danach nicht verschieben. Falls doch, `Install.ps1` erneut ausführen
 | App vollständig beenden | **Quit app** |
 
 Pro Tastendruck ändert sich die Panelhelligkeit um **3 Einheiten**. Die App muss laufen. Erneutes Starten öffnet das vorhandene Fenster. Netzwerkbefehle werden nacheinander im Hintergrund verarbeitet.
+
+## Tray-Symbol
+
+Das Sonnensymbol erscheint unten rechts im Windows-Infobereich, gegebenenfalls unter **^**. Anklicken öffnet das Fenster. Rechtsklick bietet **Öffnen**, **Dunkler**, **Heller**, **Zeitplan ein/aus** und **Beenden** (englische Menütexte). Der Tooltip zeigt die zuletzt bekannte Helligkeit. Beim Schließen des Fensters laufen Zeitplan und Tastenkürzel weiter. Nach einem Explorer-Neustart wird das Symbol wiederhergestellt.
+
+## Täglicher Zeitplan
+
+Im Fenster unter **Daily schedule** eine Uhrzeit und einen Wert je Zeile eintragen:
+
+```text
+08:00=30
+20:00=15
+23:00=5
+```
+
+**Enable daily schedule** aktivieren und **Save schedule** anklicken. Das Beispiel ist zunächst **deaktiviert**. Zeiten müssen im 24-Stunden-Format `HH:MM` stehen und dürfen nicht doppelt vorkommen; Helligkeitswerte reichen von 0 bis 50.
+
+Der Plan wiederholt sich täglich nach der **lokalen Windows-Uhrzeit**, einschließlich Sommer-/Winterzeit. Beim Aktivieren, App-Start und nach dem Aufwachen wird der zuletzt fällige Eintrag angewendet. Vor der ersten Tageszeit gilt der letzte Eintrag vom Vortag. Manuelle Änderungen bleiben bis zum nächsten Zeiteintrag erhalten.
+
+Ist der Monitor nicht erreichbar, versucht die App es nach 60 Sekunden erneut, ohne ein Fenster aufzudrängen. Sie weckt den Monitor nicht auf. PC und App müssen laufen. Es werden keine Windows-Aufgaben angelegt. Die Helligkeit wird direkt umgestellt, ohne sanften Übergang. Über das Tray-Menü kann der gespeicherte Zeitplan pausiert und fortgesetzt werden.
 
 ## Datenschutz
 

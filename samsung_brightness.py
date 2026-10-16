@@ -15,6 +15,9 @@ import socket
 import ssl
 import sys
 import threading
+import time
+from datetime import datetime
+from daily_schedule import parse_schedule, ScheduleState
 
 APP_NAME = "Samsung IP Brightness"
 DATA_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "SamsungIPBrightness"
@@ -154,6 +157,8 @@ def run(background: bool = False, initial_offset: int | None = None) -> None:
         return
 
     commands, events = queue.Queue(), queue.Queue()
+    config_lock = threading.Lock()
+    scheduler = ScheduleState()
     try:
         config = load_config()
     except (OSError, ValueError):
@@ -176,14 +181,23 @@ def run(background: bool = False, initial_offset: int | None = None) -> None:
                     current = candidate.read()  # Require brightness support before saving.
                     settings = {"ip": candidate.host, "protected_token": base64.b64encode(
                         protect(candidate.token.encode())).decode()}
-                    save_config(settings)
+                    with config_lock:
+                        config.update(settings)
+                        save_config(config)
                     active[0] = candidate
                     events.put(("paired", current))
                 else:
                     monitor = active[0]
                     if monitor is None:
                         raise RuntimeError("Enter your monitor IP and click Pair monitor.")
-                    if mode == "offset":
+                    if mode == "scheduled":
+                        generation, key, target = argument
+                        if generation != schedule_generation[0] or not config.get('schedule_enabled'):
+                            continue
+                        current = monitor.set(target)
+                        events.put(("scheduled_ok", (generation, key, current)))
+                        continue
+                    elif mode == "offset":
                         current = monitor.set(monitor.read() + argument)
                     elif mode == "set":
                         current = monitor.set(argument)
@@ -198,13 +212,17 @@ def run(background: bool = False, initial_offset: int | None = None) -> None:
                     message = "Cannot reach monitor. Check power, IP Remote, IP address and network."
                 else:
                     message = str(error) if isinstance(error, RuntimeError) else "Pairing/control failed."
-                events.put(("error", message))
+                events.put(("scheduled_error", (argument[0], argument[1], message)) if mode == "scheduled"
+                           else ("error", message))
 
     threading.Thread(target=worker, daemon=True).start()
 
     def listener():
         while True:
-            conn, _ = server.accept()
+            try:
+                conn, _ = server.accept()
+            except OSError:
+                return  # App shutdown closes the listening socket.
             with conn:
                 conn.settimeout(2)
                 try:
@@ -241,7 +259,7 @@ def run(background: bool = False, initial_offset: int | None = None) -> None:
     threading.Thread(target=hotkeys, daemon=True).start()
     app = tk.Tk()
     app.title(APP_NAME)
-    app.geometry("540x350")
+    app.geometry("560x590")
     app.resizable(False, False)
     frame = ttk.Frame(app, padding=20)
     frame.pack(fill="both", expand=True)
@@ -285,7 +303,43 @@ def run(background: bool = False, initial_offset: int | None = None) -> None:
     ttk.Label(frame, textvariable=status, wraplength=495).pack(anchor="w")
     key_status = tk.StringVar(value="Registering keyboard shortcuts…")
     ttk.Label(frame, textvariable=key_status).pack(anchor="w", pady=10)
-    ttk.Label(frame, text="Closing the window keeps hotkeys active. Reopen using the shortcut.").pack(anchor="w")
+    ttk.Label(frame, text="Close to tray. Click the sun icon to reopen; right-click for actions.").pack(anchor="w")
+    schedule_box = ttk.LabelFrame(frame, text="Daily schedule · local Windows time", padding=10)
+    schedule_box.pack(fill="x", pady=(12, 0))
+    schedule_enabled = tk.BooleanVar(value=bool(config.get('schedule_enabled', False)))
+    schedule_generation = [0]
+    ttk.Checkbutton(schedule_box, text="Enable daily schedule (save to apply)", variable=schedule_enabled).pack(anchor='w')
+    ttk.Label(schedule_box, text="One time per line: HH:MM=brightness (0–50)").pack(anchor='w')
+    schedule_text = tk.Text(schedule_box, height=4, width=35)
+    schedule_text.pack(fill='x', pady=5)
+    try:
+        entries = config.get('schedule', [])
+        initial_text = '\n'.join(f"{item['time']}={item['brightness']}" for item in entries)
+        schedule_entries = [parse_schedule(initial_text)] if entries else [[]]
+    except (ValueError, KeyError, TypeError):
+        schedule_entries = [[]]
+        schedule_enabled.set(False)
+    schedule_text.insert('1.0', initial_text if schedule_entries[0] else '08:00=30\n20:00=15\n23:00=5')
+    schedule_note = tk.StringVar(value='Manual changes remain until the next scheduled time.')
+
+    def save_schedule():
+        try:
+            entries = parse_schedule(schedule_text.get('1.0', 'end'))
+            with config_lock:
+                config['schedule'] = entries
+                config['schedule_enabled'] = schedule_enabled.get()
+                save_config(config)
+            schedule_entries[0] = entries
+            scheduler.reset()
+            schedule_generation[0] += 1
+            schedule_note.set('Saved. Current time slot applies now.' if schedule_enabled.get() else 'Schedule disabled.')
+        except ValueError as error:
+            schedule_note.set(str(error))
+        except OSError:
+            schedule_note.set('Cannot save settings to the Windows user profile.')
+
+    ttk.Button(schedule_box, text='Save schedule', command=save_schedule).pack(anchor='e')
+    ttk.Label(schedule_box, textvariable=schedule_note, wraplength=490).pack(anchor='w', pady=(5, 0))
     buttons = ttk.Frame(frame)
     buttons.pack(fill="x", pady=12)
     ttk.Button(buttons, text="Refresh", command=lambda: commands.put(("read", None))).pack(side="left")
@@ -293,6 +347,7 @@ def run(background: bool = False, initial_offset: int | None = None) -> None:
     def quit_app():
         if hotkey_thread[0]:
             ctypes.windll.user32.PostThreadMessageW(hotkey_thread[0], 0x0012, 0, 0)
+        tray.stop()
         server.close()
         app.destroy()
 
@@ -307,11 +362,47 @@ def run(background: bool = False, initial_offset: int | None = None) -> None:
         if active[0]:
             commands.put(("read", None))
 
+    from windows_tray import TrayIcon
+    tray = TrayIcon(lambda kind, payload: events.put((kind, payload)))
+
+    def schedule_tick():
+        if config.get('schedule_enabled') and active[0] and schedule_entries[0]:
+            due = scheduler.due(schedule_entries[0], datetime.now(), time.monotonic())
+            if due:
+                key, target = due
+                commands.put(('scheduled', (schedule_generation[0], key, target)))
+        tray.update(f'{APP_NAME} · {round(value.get())}/50' +
+                    (' · Schedule on' if config.get('schedule_enabled') else ''),
+                    bool(config.get('schedule_enabled')))
+        app.after(1000, schedule_tick)
+
     def poll():
         try:
             while True:
                 kind, payload = events.get_nowait()
-                if kind in ("value", "paired"):
+                if kind == 'scheduled_ok':
+                    generation, key, current = payload
+                    if generation == schedule_generation[0]:
+                        scheduler.finish(key, True)
+                        schedule_note.set(f'Applied scheduled brightness: {current}/50')
+                    events.put(('value', current))
+                elif kind == 'scheduled_error':
+                    generation, key, message = payload
+                    if generation == schedule_generation[0]:
+                        scheduler.finish(key, False)
+                        schedule_note.set(message + ' Retrying in 60 seconds.')
+                elif kind == 'tray':
+                    if payload == 'show':
+                        show()
+                    elif payload in ('darker', 'brighter'):
+                        commands.put(('offset', -3 if payload == 'darker' else 3))
+                    elif payload == 'schedule':
+                        schedule_enabled.set(not bool(config.get('schedule_enabled')))
+                        save_schedule()
+                    elif payload == 'quit':
+                        quit_app()
+                        return
+                elif kind in ("value", "paired"):
                     value.set(payload)
                     label.configure(text=f"{payload} / 50")
                     slider.state(["!disabled"])
@@ -336,6 +427,7 @@ def run(background: bool = False, initial_offset: int | None = None) -> None:
     if active[0]:
         commands.put(("offset", initial_offset) if initial_offset is not None else ("read", None))
     poll()
+    schedule_tick()
     app.mainloop()
 
 
