@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+build/
+dist/
+*.spec
+*.log
+config.json
+ip-auth.json
+.env
+.env.*
+*.backup
