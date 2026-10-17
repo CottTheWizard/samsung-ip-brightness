@@ -14,16 +14,17 @@ Control the **actual panel brightness** of a compatible Samsung smart monitor fr
 ## Requirements
 
 - Windows 10 or 11.
-- [Python 3.10 or newer](https://www.python.org/downloads/windows/) with **Tcl/Tk** and the Python launcher (`py`). The standard Python installer includes these options.
+- **Windows EXE:** no Python installation required. The release build targets x64 Windows.
+- **Source version only:** [Python 3.10 or newer](https://www.python.org/downloads/windows/) with **Tcl/Tk** and the Python launcher (`py`). The standard Python installer includes these options.
 - PC and monitor on the same trusted local network. HDMI/DisplayPort carries the picture; the monitor also needs its own Wi-Fi/network connection.
 - **IP Remote** enabled on the monitor. No administrator rights are required for the app.
 
 ## Setup
 
-1. On GitHub, choose **Code → Download ZIP**, then extract the ZIP to a permanent folder. Alternatively, clone this repository.
+1. Download **`SamsungIPBrightness-windows-x64.zip`** from [Releases](https://github.com/CottTheWizard/samsung-ip-brightness/releases/latest) and extract it to a permanent folder. Start **`SamsungIPBrightness.exe`**; no Python installation is needed. For source code instead, use **Code → Download ZIP** or clone this repository and install Python as above.
 2. On the monitor, enable **Settings → All Settings → Connection → Network → Expert Settings → IP Remote**. Menu labels vary by firmware and region. Enable the option in the normal settings; do not change service-menu settings.
 3. Find the monitor's IPv4 address under **Network Status → IP Settings**. A router DHCP reservation is recommended so the address stays the same.
-4. Double-click **`Start.cmd`**. If prompted, install Python first. You can also run `py -3 samsung_brightness.py` in a terminal.
+4. Double-click **`SamsungIPBrightness.exe`** (binary package) or **`Start.cmd`** (source version). `Start.cmd` automatically uses the EXE if present. Source users can also run `py -3 samsung_brightness.py` in a terminal.
 5. Enter **your own monitor IP address** and click **Pair monitor**. Select **Allow** on the monitor within 40 seconds.
 6. Move the slider and confirm a visible brightness change. The app checks that `backlightControl` is available before saving the pairing.
 
@@ -50,7 +51,9 @@ Keep the extracted folder in place: the shortcuts point to it. Running the insta
 
 ### System tray
 
-The sun icon appears in the Windows notification area (possibly under **^**). Click it to open the window. Right-click for **Open**, **Darker**, **Brighter**, **Daily schedule** on/off and **Quit app**. The tooltip shows the latest known brightness. Closing the window keeps the tray icon, schedule and hotkeys running. The icon is restored if Windows Explorer restarts.
+The sun icon appears in the Windows notification area (possibly under **^**). Click it to open the window. **Hover over the sun and scroll up/down to brighten/dim by 3 panel units per notch.** No click or focused window is required. Open the hidden-icons panel first if the sun is under **^**, or drag it onto the taskbar notification area. Scrolling elsewhere is left untouched. High-resolution partial wheel movements accumulate until one notch is reached.
+
+Right-click for **Open**, **Darker**, **Brighter**, **Daily schedule** on/off and **Quit app**. The tooltip shows the latest known brightness. Closing the window keeps the tray icon, schedule and hotkeys running. The icon is restored if Windows Explorer restarts.
 
 ### Daily brightness schedule
 
@@ -86,6 +89,7 @@ py -3 samsung_brightness.py --offset -3
 - The loopback listener lets another local launch show the app or adjust brightness. Other programs running on the same PC can also request these actions. It is not exposed to the LAN.
 - Samsung's local HTTPS endpoint uses a self-signed certificate, so this connection does not verify the certificate. Use a trusted network; **do not expose monitor ports to the internet**.
 - The app does not access the service menu or change OLED protection settings.
+- Tray scrolling uses a local Windows low-level mouse hook to detect wheel events over this app's icon. Mouse input is not recorded or transmitted. Other mouse events pass through unchanged.
 
 ## Troubleshooting
 
@@ -108,6 +112,16 @@ Click **Quit app**, then run `Uninstall.ps1` to remove this app's shortcuts and 
 py -3 -m unittest discover -s tests -v
 py -3 -m py_compile samsung_brightness.py
 ```
+
+### Build a standalone EXE
+
+On x64 Windows with Python installed, run:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Build.ps1
+```
+
+The script installs the pinned PyInstaller build dependency, then creates `dist/SamsungIPBrightness.exe`, the Windows ZIP package (including install/uninstall scripts and guides), and `dist/SHA256SUMS.txt`. Only the build machine needs Python. The one-file app extracts bundled runtime files to a temporary folder while running; first startup may take a few seconds. Release binaries are not code-signed. The GitHub **Windows EXE** workflow also builds downloadable artifacts on version tags or manual dispatch. User configuration is outside the project and is not included in the build.
 
 The tests use mocked network responses; they do not contact a real monitor. Schedule tests cover midnight rollover, exact boundaries, manual overrides, retries and the next day. Windows smoke tests cover startup, DPAPI, single-instance behavior, global hotkeys, tray lifecycle and applying a schedule through the GUI. Actual panel control was verified on a G95SC. Other monitors need hardware testing.
 

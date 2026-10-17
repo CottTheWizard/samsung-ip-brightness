@@ -1,0 +1,25 @@
+name: Windows EXE
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - run: python -m unittest discover -s tests -v
+      - shell: pwsh
+        run: ./Build.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SamsungIPBrightness-windows-x64
+          path: |
+            dist/SamsungIPBrightness.exe
+            dist/SamsungIPBrightness-windows-x64.zip
+            dist/SHA256SUMS.txt

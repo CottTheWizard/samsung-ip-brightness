@@ -6,12 +6,12 @@ Eine kleine Windows-App, die die **echte Panelhelligkeit** kompatibler Samsung-M
 
 ## Einrichtung
 
-1. **Python installieren:** [Python für Windows](https://www.python.org/downloads/windows/), Version 3.10 oder neuer. **Tcl/Tk** und den **Python Launcher (`py`)** mitinstallieren. Zusätzliche Python-Pakete werden nicht benötigt.
-2. Auf GitHub **Code → Download ZIP** wählen. ZIP in einen dauerhaften Ordner entpacken.
+1. Unter **[Releases](https://github.com/CottTheWizard/samsung-ip-brightness/releases/latest)** die Datei **`SamsungIPBrightness-windows-x64.zip`** herunterladen. Diese Version benötigt **keine Python-Installation** und ist für x64-Windows gebaut.
+2. ZIP in einen dauerhaften Ordner entpacken. Alternativ den Quellcode über **Code → Download ZIP** laden; nur dafür [Python 3.10+ mit Tcl/Tk und Python Launcher](https://www.python.org/downloads/windows/) installieren.
 3. PC und Monitor mit demselben vertrauenswürdigen lokalen Netzwerk verbinden. HDMI/DisplayPort allein reicht für die Netzwerksteuerung nicht.
 4. Am Monitor **Einstellungen → Alle Einstellungen → Verbindung → Netzwerk → Experteneinstellungen → IP-Fernbedienung / IP Remote** einschalten. Die Menünamen können je nach Firmware abweichen. Dafür ist kein Servicemenü nötig.
 5. Unter **Netzwerkstatus → IP-Einstellungen** die IPv4-Adresse des Monitors nachsehen. Im Router möglichst eine feste DHCP-Zuweisung einrichten.
-6. **`Start.cmd` doppelklicken.** Im Fenster die eigene Monitor-IP eintragen und **Pair monitor** anklicken.
+6. **`SamsungIPBrightness.exe` doppelklicken** (EXE-Paket) beziehungsweise **`Start.cmd`** (Quellcode). Im Fenster die eigene Monitor-IP eintragen und **Pair monitor** anklicken.
 7. Die Anfrage am Monitor innerhalb von 40 Sekunden mit **Erlauben** bestätigen.
 8. Den Regler bewegen und prüfen, ob sich die Bildhelligkeit sichtbar ändert. Eine erfolgreiche Zahlenrückmeldung allein garantiert das nicht auf jedem Modell.
 
@@ -42,7 +42,9 @@ Pro Tastendruck ändert sich die Panelhelligkeit um **3 Einheiten**. Die App mus
 
 ## Tray-Symbol
 
-Das Sonnensymbol erscheint unten rechts im Windows-Infobereich, gegebenenfalls unter **^**. Anklicken öffnet das Fenster. Rechtsklick bietet **Öffnen**, **Dunkler**, **Heller**, **Zeitplan ein/aus** und **Beenden** (englische Menütexte). Der Tooltip zeigt die zuletzt bekannte Helligkeit. Beim Schließen des Fensters laufen Zeitplan und Tastenkürzel weiter. Nach einem Explorer-Neustart wird das Symbol wiederhergestellt.
+Das Sonnensymbol erscheint unten rechts im Windows-Infobereich, gegebenenfalls unter **^**. **Maus über die Sonne bewegen und scrollen: nach oben heller, nach unten dunkler, jeweils drei Stufen pro Rastung.** Anklicken oder Aktivieren des Fensters ist nicht nötig. Bei ausgeblendetem Symbol zuerst **^** öffnen oder die Sonne dauerhaft in den Infobereich ziehen. Scrollen außerhalb des Symbols bleibt unverändert.
+
+Anklicken öffnet das Fenster. Rechtsklick bietet **Öffnen**, **Dunkler**, **Heller**, **Zeitplan ein/aus** und **Beenden** (englische Menütexte). Der Tooltip zeigt die zuletzt bekannte Helligkeit. Beim Schließen des Fensters laufen Zeitplan und Tastenkürzel weiter. Nach einem Explorer-Neustart wird das Symbol wiederhergestellt.
 
 ## Täglicher Zeitplan
 
@@ -65,6 +67,8 @@ Ist der Monitor nicht erreichbar, versucht die App es nach 60 Sekunden erneut, o
 Das öffentliche Projekt enthält keine vorkonfigurierte Monitor-IP und keine Zugangstoken. Die eigene IP und der mit **Windows DPAPI verschlüsselte** Token werden ausschließlich unter `%LOCALAPPDATA%\SamsungIPBrightness\config.json` gespeichert. Diese Datei nicht veröffentlichen. Auf einem anderen Windows-Konto muss neu gekoppelt werden.
 
 Keine Cloud, Werbung oder Telemetrie. Zur lokalen Verbindung wird das selbstsignierte Monitor-Zertifikat ohne Prüfung akzeptiert: deshalb nur in einem vertrauenswürdigen Netzwerk verwenden. Keine Monitorports ins Internet freigeben. Ein lokaler Listener auf `127.0.0.1:47864` ermöglicht das erneute Öffnen und lokale Helligkeitsbefehle; andere Programme auf demselben PC können ihn ebenfalls ansprechen. Er ist nicht im LAN erreichbar.
+
+Für die Mausradsteuerung verwendet die App einen lokalen Windows-Maushook. Mauseingaben werden weder aufgezeichnet noch übertragen. Die EXE ist nicht digital signiert und entpackt ihre gebündelte Laufzeit beim Start vorübergehend in einen temporären Ordner.
 
 ## Wenn etwas nicht funktioniert
 

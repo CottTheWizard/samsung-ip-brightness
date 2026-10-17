@@ -303,7 +303,7 @@ def run(background: bool = False, initial_offset: int | None = None) -> None:
     ttk.Label(frame, textvariable=status, wraplength=495).pack(anchor="w")
     key_status = tk.StringVar(value="Registering keyboard shortcuts…")
     ttk.Label(frame, textvariable=key_status).pack(anchor="w", pady=10)
-    ttk.Label(frame, text="Close to tray. Click the sun icon to reopen; right-click for actions.").pack(anchor="w")
+    ttk.Label(frame, text="Tray sun: click to open · scroll to dim/brighten · right-click for actions.").pack(anchor="w")
     schedule_box = ttk.LabelFrame(frame, text="Daily schedule · local Windows time", padding=10)
     schedule_box.pack(fill="x", pady=(12, 0))
     schedule_enabled = tk.BooleanVar(value=bool(config.get('schedule_enabled', False)))
@@ -402,6 +402,8 @@ def run(background: bool = False, initial_offset: int | None = None) -> None:
                     elif payload == 'quit':
                         quit_app()
                         return
+                elif kind == 'wheel':
+                    commands.put(('offset', payload))
                 elif kind in ("value", "paired"):
                     value.set(payload)
                     label.configure(text=f"{payload} / 50")

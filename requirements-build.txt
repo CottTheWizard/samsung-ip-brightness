@@ -1,0 +1,2 @@
+# Build-time dependency only. Source users need no third-party packages.
+pyinstaller==6.22.3
