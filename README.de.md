@@ -15,6 +15,8 @@ Eine kleine Windows-App, die die **echte Panelhelligkeit** kompatibler Samsung-M
 7. Die Anfrage am Monitor innerhalb von 40 Sekunden mit **Erlauben** bestätigen.
 8. Den Regler bewegen und prüfen, ob sich die Bildhelligkeit sichtbar ändert. Eine erfolgreiche Zahlenrückmeldung allein garantiert das nicht auf jedem Modell.
 
+Gültige IP-Adressen werden nach der Eingabe, bei Enter und beim Schließen des Fensters automatisch gespeichert – auch ohne erfolgreiche Kopplung oder bei ausgeschaltetem Monitor. Nach einem Adresswechsel **Pair monitor** wählen. Die bisherige Kopplung bleibt für ihre ursprüngliche Adresse erhalten; ihr Token wird nicht automatisch an eine neu eingegebene Adresse gesendet.
+
 ## Desktop-Verknüpfung und Autostart
 
 **`Install.ps1` rechtsklicken → Mit PowerShell ausführen.** Das Skript erstellt Verknüpfungen auf dem Desktop und im Startmenü und fragt nach dem optionalen Autostart bei der Windows-Anmeldung. Es lädt keine Programme herunter und verändert keine Monitoreinstellungen.

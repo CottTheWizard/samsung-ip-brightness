@@ -76,6 +76,15 @@ def save_config(config: dict) -> None:
     temporary.replace(DATA_DIR / "config.json")
 
 
+def remember_monitor_ip(config: dict, address: str) -> str:
+    """Save the entered address independently of successful device pairing."""
+    address = validate_ip(address)
+    updated = {**config, "monitor_ip": address}
+    save_config(updated)
+    config.update(updated)
+    return address
+
+
 class Monitor:
     def __init__(self, host: str, token: str = "", port: int = 1516):
         self.host = validate_ip(host)
@@ -165,7 +174,7 @@ def run(background: bool = False, initial_offset: int | None = None) -> None:
         config = {}
     active = [None]
     try:
-        if config.get("protected_token"):
+        if config.get("protected_token") and config.get('monitor_ip', config.get('ip')) == config.get('ip'):
             active[0] = configured_monitor(config)
     except Exception:
         pass  # A moved Windows account/config requires pairing again.
@@ -179,7 +188,7 @@ def run(background: bool = False, initial_offset: int | None = None) -> None:
                     result = candidate.call("createAccessToken")
                     candidate.token = result["AccessToken"]
                     current = candidate.read()  # Require brightness support before saving.
-                    settings = {"ip": candidate.host, "protected_token": base64.b64encode(
+                    settings = {"ip": candidate.host, "monitor_ip": candidate.host, "protected_token": base64.b64encode(
                         protect(candidate.token.encode())).decode()}
                     with config_lock:
                         config.update(settings)
@@ -267,7 +276,7 @@ def run(background: bool = False, initial_offset: int | None = None) -> None:
     ttk.Label(frame, text="Local panel brightness over your network · no cloud").pack(anchor="w", pady=(0, 12))
     row = ttk.Frame(frame)
     row.pack(fill="x")
-    ip = tk.StringVar(value=config.get("ip", ""))
+    ip = tk.StringVar(value=config.get("monitor_ip", config.get("ip", "")))
     ttk.Label(row, text="Monitor IP:").pack(side="left")
     entry = ttk.Entry(row, textvariable=ip, width=22)
     entry.pack(side="left", padx=8)
@@ -276,10 +285,16 @@ def run(background: bool = False, initial_offset: int | None = None) -> None:
     def pair():
         try:
             address = validate_ip(ip.get())
+            with config_lock:
+                remember_monitor_ip(config, address)
         except ValueError:
             status.set("Enter a valid monitor IPv4 address, e.g. 192.168.1.100.")
             return
+        except OSError:
+            status.set('Cannot save monitor IP. Check access to the Windows user profile.')
+            return
         pair_button.state(["disabled"])
+        entry.state(['disabled'])
         status.set("Pairing… select Allow on the monitor (up to 40 seconds).")
         commands.put(("pair", address))
 
@@ -300,6 +315,40 @@ def run(background: bool = False, initial_offset: int | None = None) -> None:
     slider = ttk.Scale(frame, from_=0, to=50, variable=value, command=change)
     slider.pack(fill="x", pady=8)
     slider.state(["disabled"])
+    ip_save_timer = [None]
+
+    def save_entered_ip(event=None):
+        if ip_save_timer[0]:
+            app.after_cancel(ip_save_timer[0])
+            ip_save_timer[0] = None
+        try:
+            address = validate_ip(ip.get())
+            if config.get('monitor_ip') == address:
+                return
+            with config_lock:
+                remember_monitor_ip(config, address)
+            if address != config.get('ip'):
+                active[0] = None
+                slider.state(['disabled'])
+                status.set('IP address saved. Click Pair monitor to connect this address.')
+            elif config.get('protected_token'):
+                active[0] = configured_monitor(config)
+                commands.put(('read', None))
+        except ValueError:
+            pass  # Incomplete text is not a valid new saved address.
+        except OSError:
+            status.set('Cannot save monitor IP. Check access to the Windows user profile.')
+        except Exception:
+            status.set('IP saved. Pair the monitor again to reconnect.')
+
+    def ip_changed(*args):
+        if ip_save_timer[0]:
+            app.after_cancel(ip_save_timer[0])
+        ip_save_timer[0] = app.after(600, save_entered_ip)
+
+    ip.trace_add('write', ip_changed)
+    entry.bind('<FocusOut>', save_entered_ip)
+    entry.bind('<Return>', save_entered_ip)
     ttk.Label(frame, textvariable=status, wraplength=495).pack(anchor="w")
     key_status = tk.StringVar(value="Registering keyboard shortcuts…")
     ttk.Label(frame, textvariable=key_status).pack(anchor="w", pady=10)
@@ -345,6 +394,7 @@ def run(background: bool = False, initial_offset: int | None = None) -> None:
     ttk.Button(buttons, text="Refresh", command=lambda: commands.put(("read", None))).pack(side="left")
 
     def quit_app():
+        save_entered_ip()
         if hotkey_thread[0]:
             ctypes.windll.user32.PostThreadMessageW(hotkey_thread[0], 0x0012, 0, 0)
         tray.stop()
@@ -352,7 +402,11 @@ def run(background: bool = False, initial_offset: int | None = None) -> None:
         app.destroy()
 
     ttk.Button(buttons, text="Quit app", command=quit_app).pack(side="right")
-    app.protocol("WM_DELETE_WINDOW", app.withdraw)
+    def hide_window():
+        save_entered_ip()
+        app.withdraw()
+
+    app.protocol("WM_DELETE_WINDOW", hide_window)
 
     def show():
         app.deiconify()
@@ -410,9 +464,11 @@ def run(background: bool = False, initial_offset: int | None = None) -> None:
                     slider.state(["!disabled"])
                     status.set("Connected. Brightness read from monitor.")
                     pair_button.state(["!disabled"])
+                    entry.state(['!disabled'])
                 elif kind == "error":
                     status.set(payload)
                     pair_button.state(["!disabled"])
+                    entry.state(['!disabled'])
                     if not app.winfo_viewable():
                         show()
                 elif kind == "keys":

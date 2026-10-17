@@ -28,6 +28,8 @@ Control the **actual panel brightness** of a compatible Samsung smart monitor fr
 5. Enter **your own monitor IP address** and click **Pair monitor**. Select **Allow** on the monitor within 40 seconds.
 6. Move the slider and confirm a visible brightness change. The app checks that `backlightControl` is available before saving the pairing.
 
+The IP field saves valid addresses automatically after typing, on Enter, and when closing the window—even if pairing fails or the monitor is offline. A saved address is separate from a paired connection: after changing it, click **Pair monitor** to authorize that address. Existing pairing credentials are retained for their original address and are never sent automatically to a newly entered IP.
+
 ### Shortcuts and automatic startup
 
 Right-click **`Install.ps1` → Run with PowerShell** to create Desktop and Start Menu shortcuts. It asks whether to enable startup at sign-in. If your script policy blocks it, inspect the script and run this from PowerShell in the extracted project folder:
